@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.16.2",
     "jquery": "^3.2.1",
     "jsdom": "^11.3.0",
     "node-fetch": "^1.7.3"
