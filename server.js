@@ -3,8 +3,9 @@ const {JSDOM} = jsdom;
 const axios = require('axios');
 const jquery = require('jquery');
 const fetch = require('node-fetch');
-const fs = require('fs');
 const sleep = require('sleep');
+
+const captchaAddress = 'https://accounts.google.com/DisplayUnlockCaptcha';
 
 let convertCookies = function (responseCookies) {
   let cookies = [];
@@ -27,12 +28,14 @@ fetch('http://gmail.com')
 
 let handleUsernameForm = function (htmlText) {
   console.log('Filling out username form...');
+  let username = process.argv[2];
+  console.log(username);
   sleep.sleep(1);
   const {window} = new JSDOM(htmlText);
   const $ = jquery(window);
   let $form = $('form');
   let action = $form.attr('action');
-  $form.find('input[name=Email]').val('bannonswaterproof');
+  $form.find('input[name=Email]').val(username);
   let formData = $form.serialize();
   axios.request({
     url: action,
@@ -48,15 +51,17 @@ let handleUsernameForm = function (htmlText) {
   });
 };
 
-let handlePasswordForm = function (previousResponse) {
+let handlePasswordForm = function (prevResponse) {
   console.log('Filling out password form...');
+  let password = process.argv[3];
+  console.log(password);
   sleep.sleep(1);
-  let cookies = convertCookies(previousResponse.headers['set-cookie']);
-  const {window} = new JSDOM(previousResponse.data);
+  let cookies = convertCookies(prevResponse.headers['set-cookie']);
+  const {window} = new JSDOM(prevResponse.data);
   const $ = jquery(window);
   let $form = $('form');
   let action = $form.attr('action');
-  $form.find('input[name=Passwd]').val('medalist');
+  $form.find('input[name=Passwd]').val(password);
   let formData = $form.serialize();
   axios.request({
     url: action,
@@ -71,18 +76,18 @@ let handlePasswordForm = function (previousResponse) {
     console.log(response.data);
   }).catch(function (error) {
     if (error.response.status == 302) {
-      redirect(error.response, cookies);
+      handleRedirect(error.response, cookies);
     } else {
       console.log('Error: ', error);
     }
   });
 };
 
-let redirect = function (previousResponse, prevCookies) {
-  let url = previousResponse.headers.location;
+let handleRedirect = function (prevResponse, prevCookies) {
+  let url = prevResponse.headers.location;
   let cookies = prevCookies;
-  if (previousResponse.headers['set-cookie']){
-    cookies = cookies + '; ' + convertCookies(previousResponse.headers['set-cookie']);
+  if (prevResponse.headers['set-cookie']) {
+    cookies = cookies + '; ' + convertCookies(prevResponse.headers['set-cookie']);
   }
   console.log('\nredirected to ' + url);
   console.log('cookies: ' + cookies);
@@ -94,15 +99,72 @@ let redirect = function (previousResponse, prevCookies) {
     },
     maxRedirects: 0
   }).then(function (response) {
-    fs.writeFile("index.html", response.data, function(err) {
-      if(err) {
-        return console.log(err);
-      }
-      console.log("\nThe file was saved!");
-    });
-  }).catch(function (error){
+    handleLoggedIn(response, cookies);
+  }).catch(function (error) {
     if (error.response.status == 302) {
-      redirect(error.response, cookies);
+      handleRedirect(error.response, cookies);
+    } else {
+      console.log('Error: ', error);
+    }
+  });
+};
+
+let handleLoggedIn = function (prevResponse, prevCookies) {
+  console.log('\nLogged in to GMail');
+  let cookies = prevCookies;
+  if (prevResponse.headers['set-cookie']) {
+    cookies = cookies + '; ' + convertCookies(prevResponse.headers['set-cookie']);
+  }
+  console.log('\nattempting ' + captchaAddress);
+  console.log('cookies: ' + cookies);
+  axios.request({
+    url: captchaAddress,
+    method: 'get',
+    headers: {
+      'Cookie': cookies,
+    },
+    maxRedirects: 0
+  }).then(function (response) {
+    handleUnlockForm(response, cookies);
+  }).catch(function (error) {
+    if (error.response.status == 302) {
+      console.log('redirect requested');
+    } else {
+      console.log('Error: ', error);
+    }
+  });
+};
+
+let handleUnlockForm = function(prevResponse, prevCookies){
+  console.log('\nFilling out unlock form...');
+  sleep.sleep(1);
+  let cookies = prevCookies;
+  if (prevResponse.headers['set-cookie']) {
+    cookies = cookies + '; ' + convertCookies(prevResponse.headers['set-cookie']);
+  }
+  const {window} = new JSDOM(prevResponse.data);
+  const $ = jquery(window);
+  let $form = $('form');
+  let formData = $form.serialize();
+  console.log('\nattempting ' + captchaAddress);
+  console.log('cookies: ' + cookies);
+  axios.request({
+    url: captchaAddress,
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Cookie': cookies,
+    },
+    maxRedirects: 0
+  }).then(function (response) {
+    const {window} = new JSDOM(response.data);
+    const $ = jquery(window);
+    let $h1 = $('h1');
+    console.log($h1.html());
+  }).catch(function (error) {
+    if (error.response.status == 302) {
+      console.log('redirect requested');
     } else {
       console.log('Error: ', error);
     }

@@ -10,7 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.16.2",
-    "fs": "0.0.1-security",
     "jquery": "^3.2.1",
     "jsdom": "^11.3.0",
     "node-fetch": "^1.7.3",
