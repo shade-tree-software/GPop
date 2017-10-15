@@ -90,7 +90,6 @@ let handleRedirect = function (prevResponse, prevCookies) {
     cookies = cookies + '; ' + convertCookies(prevResponse.headers['set-cookie']);
   }
   console.log('\nredirected to ' + url);
-  console.log('cookies: ' + cookies);
   axios.request({
     url: url,
     method: 'get',
@@ -116,7 +115,6 @@ let handleLoggedIn = function (prevResponse, prevCookies) {
     cookies = cookies + '; ' + convertCookies(prevResponse.headers['set-cookie']);
   }
   console.log('\nattempting ' + captchaAddress);
-  console.log('cookies: ' + cookies);
   axios.request({
     url: captchaAddress,
     method: 'get',
@@ -147,7 +145,6 @@ let handleUnlockForm = function(prevResponse, prevCookies){
   let $form = $('form');
   let formData = $form.serialize();
   console.log('\nattempting ' + captchaAddress);
-  console.log('cookies: ' + cookies);
   axios.request({
     url: captchaAddress,
     method: 'post',
