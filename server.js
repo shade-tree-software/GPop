@@ -6,6 +6,7 @@ const fetch = require('node-fetch');
 const sleep = require('sleep');
 
 const captchaAddress = 'https://accounts.google.com/DisplayUnlockCaptcha';
+const userAgent = 'MidnightBrowser/1.0';
 
 let convertCookies = function (responseCookies) {
   let cookies = [];
@@ -43,6 +44,7 @@ let handleUsernameForm = function (htmlText) {
     data: formData,
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': userAgent
     }
   }).then(function (response) {
     handlePasswordForm(response);
@@ -70,6 +72,7 @@ let handlePasswordForm = function (prevResponse) {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'Cookie': cookies,
+      'User-Agent': userAgent
     },
     maxRedirects: 0
   }).then(function (response) {
@@ -95,6 +98,7 @@ let handleRedirect = function (prevResponse, prevCookies) {
     method: 'get',
     headers: {
       'Cookie': cookies,
+      'User-Agent': userAgent
     },
     maxRedirects: 0
   }).then(function (response) {
@@ -120,6 +124,7 @@ let handleLoggedIn = function (prevResponse, prevCookies) {
     method: 'get',
     headers: {
       'Cookie': cookies,
+      'User-Agent': userAgent
     },
     maxRedirects: 0
   }).then(function (response) {
@@ -152,6 +157,7 @@ let handleUnlockForm = function(prevResponse, prevCookies){
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'Cookie': cookies,
+      'User-Agent': userAgent
     },
     maxRedirects: 0
   }).then(function (response) {
