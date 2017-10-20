@@ -3,7 +3,6 @@ const {JSDOM} = jsdom;
 const axios = require('axios');
 const jquery = require('jquery');
 const fetch = require('node-fetch');
-const sleep = require('sleep');
 
 const captchaAddress = 'https://accounts.google.com/DisplayUnlockCaptcha';
 const userAgent = 'MidnightBrowser/1.0';
@@ -31,7 +30,6 @@ let handleUsernameForm = function (htmlText) {
   console.log('Filling out username form...');
   let username = process.argv[2];
   console.log(username);
-  sleep.sleep(1);
   const {window} = new JSDOM(htmlText);
   const $ = jquery(window);
   let $form = $('form');
@@ -57,7 +55,6 @@ let handlePasswordForm = function (prevResponse) {
   console.log('Filling out password form...');
   let password = process.argv[3];
   console.log(password);
-  sleep.sleep(1);
   let cookies = convertCookies(prevResponse.headers['set-cookie']);
   const {window} = new JSDOM(prevResponse.data);
   const $ = jquery(window);
@@ -140,7 +137,6 @@ let handleLoggedIn = function (prevResponse, prevCookies) {
 
 let handleUnlockForm = function(prevResponse, prevCookies){
   console.log('\nFilling out unlock form...');
-  sleep.sleep(1);
   let cookies = prevCookies;
   if (prevResponse.headers['set-cookie']) {
     cookies = cookies + '; ' + convertCookies(prevResponse.headers['set-cookie']);
