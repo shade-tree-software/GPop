@@ -3,6 +3,7 @@ const {JSDOM} = jsdom;
 const axios = require('axios');
 const jquery = require('jquery');
 const fetch = require('node-fetch');
+const fs = require('fs');
 
 const captchaAddress = 'https://accounts.google.com/DisplayUnlockCaptcha';
 const userAgent = 'MidnightBrowser/1.0';
@@ -15,26 +16,35 @@ let convertCookies = function (responseCookies) {
   return cookies.join('; ');
 };
 
-console.log('Contacting GMail...');
-fetch('http://gmail.com')
-  .then(function (response) {
-    return response.text();
+fs.readFile('accounts.json', 'utf8', function(err, buf){
+  console.log(buf);
+  let accounts = JSON.parse(buf);
+  accounts.forEach(function(account){
+    contactGmail(account);
   })
-  .then(function (htmlText) {
-    handleUsernameForm(htmlText);
-  }).catch(function (error) {
-  console.log('Request failed', error)
 });
 
-let handleUsernameForm = function (htmlText) {
+let contactGmail = function(account) {
+  console.log('Contacting GMail...');
+  fetch('http://gmail.com')
+    .then(function (response) {
+      return response.text();
+    })
+    .then(function (htmlText) {
+      handleUsernameForm(htmlText, account);
+    }).catch(function (error) {
+    console.log('Request failed', error)
+  });
+}
+
+let handleUsernameForm = function (htmlText, account) {
   console.log('Filling out username form...');
-  let username = process.argv[2];
-  console.log(username);
+  console.log(account.username);
   const {window} = new JSDOM(htmlText);
   const $ = jquery(window);
   let $form = $('form');
   let action = $form.attr('action');
-  $form.find('input[name=Email]').val(username);
+  $form.find('input[name=Email]').val(account.username);
   let formData = $form.serialize();
   axios.request({
     url: action,
@@ -45,15 +55,14 @@ let handleUsernameForm = function (htmlText) {
       'User-Agent': userAgent
     }
   }).then(function (response) {
-    handlePasswordForm(response);
+    handlePasswordForm(response, account.password);
   }).catch(function (error) {
     console.log('Error: ', error);
   });
 };
 
-let handlePasswordForm = function (prevResponse) {
+let handlePasswordForm = function (prevResponse, password) {
   console.log('Filling out password form...');
-  let password = process.argv[3];
   console.log(password);
   let cookies = convertCookies(prevResponse.headers['set-cookie']);
   const {window} = new JSDOM(prevResponse.data);
