@@ -16,15 +16,21 @@ let convertCookies = function (responseCookies) {
   return cookies.join('; ');
 };
 
-fs.readFile('accounts.json', 'utf8', function(err, buf){
-  console.log(buf);
-  let accounts = JSON.parse(buf);
-  accounts.forEach(function(account){
-    contactGmail(account);
-  })
-});
+let runApp = function() {
+  if (process.argv.length < 4) {
+    fs.readFile(process.argv[2] || 'accounts.json', 'utf8', function (err, buf) {
+      console.log(buf);
+      let accounts = JSON.parse(buf);
+      accounts.forEach(function (account) {
+        contactGmail(account);
+      })
+    })
+  } else {
+    contactGmail({username: process.argv[2], password: process.argv[3]})
+  }
+};
 
-let contactGmail = function(account) {
+let contactGmail = function (account) {
   console.log('Contacting GMail...');
   fetch('http://gmail.com')
     .then(function (response) {
@@ -144,7 +150,7 @@ let handleLoggedIn = function (prevResponse, prevCookies) {
   });
 };
 
-let handleUnlockForm = function(prevResponse, prevCookies){
+let handleUnlockForm = function (prevResponse, prevCookies) {
   console.log('\nFilling out unlock form...');
   let cookies = prevCookies;
   if (prevResponse.headers['set-cookie']) {
@@ -178,3 +184,5 @@ let handleUnlockForm = function(prevResponse, prevCookies){
     }
   });
 };
+
+runApp();
