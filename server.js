@@ -5,6 +5,9 @@ const jquery = require('jquery');
 const fetch = require('node-fetch');
 const fs = require('fs');
 
+const express = require('express')
+const app = express()
+
 const captchaAddress = 'https://accounts.google.com/DisplayUnlockCaptcha';
 const userAgent = 'MidnightBrowser/1.0';
 
@@ -16,34 +19,16 @@ let convertCookies = function (responseCookies) {
   return cookies.join('; ');
 };
 
-let runApp = function() {
-  if (process.argv.length < 4) {
-    fs.readFile(process.argv[2] || 'accounts.json', 'utf8', function (err, buf) {
-      console.log(buf);
-      let accounts = JSON.parse(buf);
-      accounts.forEach(function (account) {
-        contactGmail(account);
-      })
-    })
-  } else {
-    contactGmail({username: process.argv[2], password: process.argv[3]})
-  }
-};
-
-let contactGmail = function (account) {
+let contactGmail = function (account, cb, err) {
   console.log('Contacting GMail...');
-  fetch('http://gmail.com')
-    .then(function (response) {
-      return response.text();
-    })
-    .then(function (htmlText) {
-      handleUsernameForm(htmlText, account);
-    }).catch(function (error) {
-    console.log('Request failed', error)
-  });
+  fetch('http://gmail.com').then(function (response) {
+    return response.text();
+  }).then(function (htmlText) {
+    handleUsernameForm(htmlText, account, cb, err);
+  }).catch(err);
 }
 
-let handleUsernameForm = function (htmlText, account) {
+let handleUsernameForm = function (htmlText, account, cb, err) {
   console.log('Filling out username form...');
   console.log(account.username);
   const {window} = new JSDOM(htmlText);
@@ -61,13 +46,11 @@ let handleUsernameForm = function (htmlText, account) {
       'User-Agent': userAgent
     }
   }).then(function (response) {
-    handlePasswordForm(response, account.password);
-  }).catch(function (error) {
-    console.log('Error: ', error);
-  });
+    handlePasswordForm(response, account.password, cb, err);
+  }).catch(err);
 };
 
-let handlePasswordForm = function (prevResponse, password) {
+let handlePasswordForm = function (prevResponse, password, cb, err) {
   console.log('Filling out password form...');
   console.log(password);
   let cookies = convertCookies(prevResponse.headers['set-cookie']);
@@ -88,17 +71,17 @@ let handlePasswordForm = function (prevResponse, password) {
     },
     maxRedirects: 0
   }).then(function (response) {
-    console.log(response.data);
+    err(new Error(response.data));
   }).catch(function (error) {
     if (error.response.status == 302) {
-      handleRedirect(error.response, cookies);
+      handleRedirect(error.response, cookies, cb, err);
     } else {
-      console.log('Error: ', error);
+      err(error);
     }
   });
 };
 
-let handleRedirect = function (prevResponse, prevCookies) {
+let handleRedirect = function (prevResponse, prevCookies, cb, err) {
   let url = prevResponse.headers.location;
   let cookies = prevCookies;
   if (prevResponse.headers['set-cookie']) {
@@ -114,17 +97,17 @@ let handleRedirect = function (prevResponse, prevCookies) {
     },
     maxRedirects: 0
   }).then(function (response) {
-    handleLoggedIn(response, cookies);
+    handleLoggedIn(response, cookies, cb, err);
   }).catch(function (error) {
     if (error.response.status == 302) {
-      handleRedirect(error.response, cookies);
+      handleRedirect(error.response, cookies, cb, err);
     } else {
-      console.log('Error: ', error);
+      err(error);
     }
   });
 };
 
-let handleLoggedIn = function (prevResponse, prevCookies) {
+let handleLoggedIn = function (prevResponse, prevCookies, cb, err) {
   console.log('\nLogged in to GMail');
   let cookies = prevCookies;
   if (prevResponse.headers['set-cookie']) {
@@ -140,17 +123,11 @@ let handleLoggedIn = function (prevResponse, prevCookies) {
     },
     maxRedirects: 0
   }).then(function (response) {
-    handleUnlockForm(response, cookies);
-  }).catch(function (error) {
-    if (error.response.status == 302) {
-      console.log('redirect requested');
-    } else {
-      console.log('Error: ', error);
-    }
-  });
+    handleUnlockForm(response, cookies, cb, err);
+  }).catch(err);
 };
 
-let handleUnlockForm = function (prevResponse, prevCookies) {
+let handleUnlockForm = function (prevResponse, prevCookies, cb, err) {
   console.log('\nFilling out unlock form...');
   let cookies = prevCookies;
   if (prevResponse.headers['set-cookie']) {
@@ -175,14 +152,25 @@ let handleUnlockForm = function (prevResponse, prevCookies) {
     const {window} = new JSDOM(response.data);
     const $ = jquery(window);
     let $h1 = $('h1');
-    console.log($h1.html());
-  }).catch(function (error) {
-    if (error.response.status == 302) {
-      console.log('redirect requested');
-    } else {
-      console.log('Error: ', error);
-    }
-  });
+    console.log('done')
+    cb($h1.html());
+  }).catch(err);
 };
 
-runApp();
+app.use(function (req, res, next) {
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] !== 'https') {
+    res.redirect(302, 'https://' + req.hostname + req.originalUrl);
+  } else {
+    next();
+  }
+})
+
+app.get('/', (req, res) => {
+  let account = {username: req.query.username, password: req.query.password}
+  contactGmail(account, (successMessage) => res.send(successMessage), (error) => res.status(500).send('Error: ' + error.message))
+})
+
+let port = process.env.PORT || 9000
+app.listen(port, function () {
+  console.log(`Listening on port ${port}`)
+})
